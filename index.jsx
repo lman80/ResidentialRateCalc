@@ -29,7 +29,6 @@ const FREQUENCIES = [
 ];
 
 // --- COMPONENT: COMPOUND INPUT GROUP ---
-// This handles a category (e.g. "Software") that contains multiple sub-items (Jobber, QBO, etc.)
 const CompoundInputGroup = ({ label, items, onUpdate, workDays, wage }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -211,59 +210,68 @@ export default function HvacCalculator() {
 
   // 1. HOURLY WAGE & CORE TAXES (Simple Inputs)
   const [coreHourly, setCoreHourly] = useState({
-    wage: { value: 50.00, freq: 'hourly', unit: 'currency' },
-    insurance: { value: 2.00, freq: 'hourly', unit: 'currency' }, // Updated to $2
+    wage: { value: 30.00, freq: 'hourly', unit: 'currency' }, // Defaults from config file
+    insurance: { value: 2.00, freq: 'hourly', unit: 'currency' }, 
   });
 
   // 2. BENEFITS & PERKS (Compound List)
   const [benefitsList, setBenefitsList] = useState({
     general: [
-      { id: 1, name: 'Health Reimbursement', value: 1000, freq: 'monthly', unit: 'currency' }, // Updated to $1000/mo
-      { id: 2, name: 'Paid Lunch', value: 1, freq: 'daily', unit: 'hours' }, // Updated to 1hr/day
-      { id: 3, name: 'Investment Plan', value: 400, freq: 'monthly', unit: 'currency' }, // Updated to $400/mo
-      { id: 4, name: 'iPhone', value: 70, freq: 'monthly', unit: 'currency' }, // Updated to $70/mo
-      { id: 5, name: 'Snack Bar', value: 19.99, freq: 'daily', unit: 'currency' }, // Updated to $19.99/day
-      { id: 6, name: 'Wife Perk', value: 49.96, freq: 'monthly', unit: 'currency' }, // Updated to $49.96/mo
+      { id: 1, name: 'Health Reimbursement', value: 1000, freq: 'monthly', unit: 'currency' },
+      { id: 2, name: 'Paid Lunch', value: 1, freq: 'daily', unit: 'hours' },
+      { id: 3, name: 'Investment Plan', value: 400, freq: 'monthly', unit: 'currency' },
+      { id: 4, name: 'iPhone', value: 70, freq: 'monthly', unit: 'currency' },
+      { id: 5, name: 'Snack Bar', value: 19.99, freq: 'daily', unit: 'currency' },
+      { id: 6, name: 'Wife Perk', value: 49.96, freq: 'monthly', unit: 'currency' },
       { id: 7, name: 'Shop Upgrade Fund', value: 1.00, freq: 'hourly', unit: 'currency' },
     ]
   });
 
   // 3. VARIABLE OVERHEAD (Compound Lists)
   const [variableOverhead, setVariableOverhead] = useState({
-    trucks: [{ id: 1, name: 'Lease Payment', value: 3000, freq: 'yearly', unit: 'currency' }],
+    trucks: [
+      { id: 1, name: 'Lease Payment', value: 3000, freq: 'yearly', unit: 'currency' },
+      { id: 1763604728438, name: 'Bouncie Tracker', value: 10, freq: 'monthly', unit: 'currency' },
+      { id: 1763604761322, name: 'Maintanance', value: 2000, freq: 'yearly', unit: 'currency' },
+      { id: 1763604950237, name: 'Insurance', value: 100, freq: 'monthly', unit: 'currency' }
+    ],
     tools: [{ id: 1, name: 'New Setup', value: 2000, freq: 'yearly', unit: 'currency' }],
     advertising: [{ id: 1, name: 'Ad Spend', value: 4000, freq: 'yearly', unit: 'currency' }],
-    training: [{ id: 1, name: 'Certifications', value: 500, freq: 'yearly', unit: 'currency' }], // Updated to $500
-    uniforms: [{ id: 1, name: 'Shirts/Boots', value: 500, freq: 'yearly', unit: 'currency' }], // Updated to $500
-    consumables: [{ id: 1, name: 'Zip Ties/Tape', value: 10, freq: 'daily', unit: 'currency' }], // Updated to $10/day
-    warranty: [{ id: 1, name: 'Callback Fund', value: 0.5, freq: 'daily', unit: 'hours' }], // Updated to 0.5hr/day
+    training: [{ id: 1, name: 'Certifications', value: 500, freq: 'yearly', unit: 'currency' }],
+    uniforms: [{ id: 1, name: 'Shirts/Boots', value: 500, freq: 'yearly', unit: 'currency' }],
+    consumables: [{ id: 1, name: 'Zip Ties/Tape', value: 10, freq: 'daily', unit: 'currency' }],
+    warranty: [{ id: 1, name: 'Callback Fund', value: 0.5, freq: 'daily', unit: 'hours' }],
     other: [
       { id: 1, name: 'Vlog Editing', value: 4900, freq: 'yearly', unit: 'currency' },
-      { id: 2, name: 'PTO Cost', value: 80, freq: 'yearly', unit: 'hours' }, // Updated to 80hrs/yr
-      { id: 3, name: 'Paid Holidays', value: 48, freq: 'yearly', unit: 'hours' } // Updated to 48hrs/yr
+      { id: 2, name: 'PTO Cost', value: 80, freq: 'yearly', unit: 'hours' },
+      { id: 3, name: 'Paid Holidays', value: 48, freq: 'yearly', unit: 'hours' }
     ]
   });
 
-  // Gas Calculator State (Kept separate as it's a special calculator)
+  // Gas Calculator State
   const [gasParams, setGasParams] = useState({
     isOpen: false,
     milesPerDay: 80,
-    mpg: 20, // Updated to 20 MPG
-    gasPrice: 4.00, // Updated to $4
-    annualCost: 3920.00 // Initial Calculation based on above (80/20 * 4 * 245)
+    mpg: 20,
+    gasPrice: 4.00,
+    annualCost: 3920.00
   });
 
   // 4. FIXED OVERHEAD (Compound Lists)
   const [fixedOverhead, setFixedOverhead] = useState({
-    software: [{ id: 1, name: 'Jobber/QBO', value: 6000, freq: 'yearly', unit: 'currency' }],
+    software: [
+      { id: 1, name: 'Jobber', value: 360, freq: 'monthly', unit: 'currency' },
+      { id: 1763604687857, name: 'QBO', value: 169, freq: 'monthly', unit: 'currency' },
+      { id: 1763604697423, name: 'Google Emails', value: 50, freq: 'monthly', unit: 'currency' }
+    ],
     rent: [{ id: 1, name: 'Shop Rent', value: 30000, freq: 'yearly', unit: 'currency' }],
-    utilities: [{ id: 1, name: 'Shop Utilities', value: 0, freq: 'yearly', unit: 'currency' }],
+    utilities: [{ id: 1, name: 'Gas, Electricity, Water, Wifi, Garbage', value: 1000, freq: 'monthly', unit: 'currency' }],
     professional: [
       { id: 1, name: 'Accountant', value: 10000, freq: 'yearly', unit: 'currency' },
       { id: 2, name: 'Bank Fees', value: 0, freq: 'yearly', unit: 'currency' },
-      { id: 3, name: 'Licensing', value: 0, freq: 'yearly', unit: 'currency' }
+      { id: 3, name: 'Licensing', value: 1000, freq: 'yearly', unit: 'currency' }
     ],
-    insurance: [{ id: 1, name: 'Gen. Liability', value: 0, freq: 'yearly', unit: 'currency' }],
+    insurance: [{ id: 1, name: 'Gen. Liability', value: 250, freq: 'monthly', unit: 'currency' }],
     office: [
       { id: 1, name: 'Postage', value: 1000, freq: 'yearly', unit: 'currency' },
       { id: 2, name: 'Supplies', value: 0, freq: 'yearly', unit: 'currency' },
@@ -316,7 +324,6 @@ export default function HvacCalculator() {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        // Basic validation check could go here
         
         if (data.numEmployees !== undefined) setNumEmployees(data.numEmployees);
         if (data.utilizationRate !== undefined) setUtilizationRate(data.utilizationRate);
@@ -328,15 +335,12 @@ export default function HvacCalculator() {
         if (data.variableOverhead) setVariableOverhead(data.variableOverhead);
         if (data.gasParams) setGasParams(data.gasParams);
         if (data.fixedOverhead) setFixedOverhead(data.fixedOverhead);
-        
-        // Note: we do not call alert() as per constraints, but we could show a toast if we had a toast component.
-        // For now, the update is visible immediately.
       } catch (error) {
         console.error('Error parsing JSON:', error);
       }
     };
     reader.readAsText(file);
-    event.target.value = ''; // Reset input so same file can be selected again
+    event.target.value = ''; // Reset input
   };
 
 
@@ -397,12 +401,10 @@ export default function HvacCalculator() {
   const totalHourlyBurden = totalAnnualLaborCost / totalAnnualHours;
 
   // 3. Variable Overhead Total
-  // Sum up all lists in variableOverhead object + Gas
   const totalAnnualVariablePerEmp = 
     Object.values(variableOverhead).reduce((sum, list) => sum + getCompoundAnnual(list), 0) + gasParams.annualCost;
 
   // 4. Fixed Overhead Total
-  // Sum up all lists in fixedOverhead object
   const totalAnnualFixedCompany = 
     Object.values(fixedOverhead).reduce((sum, list) => sum + getCompoundAnnual(list), 0);
   
