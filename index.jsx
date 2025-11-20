@@ -123,6 +123,11 @@ export default function HvacCalculator() {
     vlogEditing: { value: 4900, freq: 'yearly', unit: 'currency' },
     pto: { value: 8000, freq: 'yearly', unit: 'currency' },
     paidHolidays: { value: 4800, freq: 'yearly', unit: 'currency' },
+    // New Items
+    uniforms: { value: 0, freq: 'yearly', unit: 'currency' },
+    consumables: { value: 0, freq: 'yearly', unit: 'currency' },
+    warranty: { value: 0, freq: 'yearly', unit: 'currency' },
+    training: { value: 0, freq: 'yearly', unit: 'currency' },
   });
 
   // Gas Calculator State
@@ -139,6 +144,13 @@ export default function HvacCalculator() {
     rent: { value: 30000, freq: 'yearly', unit: 'currency' },
     postage: { value: 1000, freq: 'yearly', unit: 'currency' },
     accountant: { value: 10000, freq: 'yearly', unit: 'currency' },
+    // New Items
+    glInsurance: { value: 0, freq: 'yearly', unit: 'currency' },
+    shopUtilities: { value: 0, freq: 'yearly', unit: 'currency' },
+    officeSupplies: { value: 0, freq: 'yearly', unit: 'currency' },
+    bankFees: { value: 0, freq: 'yearly', unit: 'currency' },
+    licensing: { value: 0, freq: 'yearly', unit: 'currency' },
+    janitorial: { value: 0, freq: 'yearly', unit: 'currency' },
   });
 
   // UI State
@@ -461,7 +473,10 @@ export default function HvacCalculator() {
                     )}
                   </div>
 
-
+                  <InputRow label="Uniforms" data={variableData.uniforms} onChange={(v) => updateVariable('uniforms', v)} />
+                  <InputRow label="Consumables" data={variableData.consumables} onChange={(v) => updateVariable('consumables', v)} />
+                  <InputRow label="Warranty/Callback" data={variableData.warranty} onChange={(v) => updateVariable('warranty', v)} />
+                  <InputRow label="Training/Certs" data={variableData.training} onChange={(v) => updateVariable('training', v)} />
                   <InputRow label="Advertising" data={variableData.advertising} onChange={(v) => updateVariable('advertising', v)} />
                   <InputRow label="Vlog Editing" data={variableData.vlogEditing} onChange={(v) => updateVariable('vlogEditing', v)} />
                   <InputRow label="PTO Cost" data={variableData.pto} onChange={(v) => updateVariable('pto', v)} />
@@ -486,8 +501,14 @@ export default function HvacCalculator() {
                 <div className="p-4 bg-white animate-in slide-in-from-top-2 duration-200">
                   <div className="text-xs text-gray-500 mb-3 bg-orange-50 p-2 rounded">Total company costs (divided by # of techs).</div>
                   <InputRow label="Rent" data={fixedData.rent} onChange={(v) => updateFixed('rent', v)} />
+                  <InputRow label="Shop Utilities" data={fixedData.shopUtilities} onChange={(v) => updateFixed('shopUtilities', v)} />
                   <InputRow label="Software" data={fixedData.software} onChange={(v) => updateFixed('software', v)} />
                   <InputRow label="Accountant" data={fixedData.accountant} onChange={(v) => updateFixed('accountant', v)} />
+                  <InputRow label="Gen. Liability Ins." data={fixedData.glInsurance} onChange={(v) => updateFixed('glInsurance', v)} />
+                  <InputRow label="Licensing/Permits" data={fixedData.licensing} onChange={(v) => updateFixed('licensing', v)} />
+                  <InputRow label="Bank Fees/Interest" data={fixedData.bankFees} onChange={(v) => updateFixed('bankFees', v)} />
+                  <InputRow label="Office Supplies" data={fixedData.officeSupplies} onChange={(v) => updateFixed('officeSupplies', v)} />
+                  <InputRow label="Janitorial/Cleaning" data={fixedData.janitorial} onChange={(v) => updateFixed('janitorial', v)} />
                   <InputRow label="Postage" data={fixedData.postage} onChange={(v) => updateFixed('postage', v)} />
                   
                   <div className="mt-4 pt-3 border-t border-gray-200 space-y-1">
