@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Calculator, Users, TrendingUp, DollarSign, AlertCircle, PieChart, Settings, ChevronDown, ChevronUp, Plus, Minus, Clock, Fuel, MapPin, Target } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Calculator, Users, TrendingUp, DollarSign, AlertCircle, PieChart, Settings, ChevronDown, ChevronUp, Plus, Minus, Clock, Fuel, MapPin, Target, Trash2, Download, Upload } from 'lucide-react';
 
 const Card = ({ children, className = "" }) => (
   <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}>
@@ -28,48 +28,158 @@ const FREQUENCIES = [
   { value: 'yearly', label: '/yr', toAnnual: (val) => val },
 ];
 
-// Unit Options
-const UNITS = [
-  { value: 'currency', label: '$', icon: DollarSign },
-  { value: 'hours', label: 'Hrs', icon: Clock },
-];
+// --- COMPONENT: COMPOUND INPUT GROUP ---
+// This handles a category (e.g. "Software") that contains multiple sub-items (Jobber, QBO, etc.)
+const CompoundInputGroup = ({ label, items, onUpdate, workDays, wage }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Calculate total annual cost for this group
+  const groupAnnualTotal = items.reduce((sum, item) => {
+    const freqConfig = FREQUENCIES.find(f => f.value === item.freq);
+    if (!freqConfig) return sum;
+    
+    let baseValue = item.value;
+    if (item.unit === 'hours') {
+       // If unit is hours, we multiply by the hourly wage to get dollar value
+       baseValue = item.value * wage; 
+    }
+    return sum + freqConfig.toAnnual(baseValue, workDays);
+  }, 0);
+
+  // Handlers for manipulating the list
+  const handleItemChange = (id, field, value) => {
+    const newItems = items.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    );
+    onUpdate(newItems);
+  };
+
+  const addItem = () => {
+    const newItem = { 
+      id: Date.now(), 
+      name: 'New Item', 
+      value: 0, 
+      freq: 'yearly', 
+      unit: 'currency' 
+    };
+    onUpdate([...items, newItem]);
+  };
+
+  const removeItem = (id) => {
+    onUpdate(items.filter(item => item.id !== id));
+  };
+
+  return (
+    <div className="border-b border-gray-100 last:border-0">
+      {/* Header Row - Shows Label + Total Sum */}
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between py-3 px-2 hover:bg-slate-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {isOpen ? <Minus size={14} className="text-blue-500" /> : <Plus size={14} className="text-slate-400" />}
+          <span className="text-sm font-medium text-slate-700">{label}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-900">${groupAnnualTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+          <span className="text-xs text-gray-400">/yr</span>
+        </div>
+      </button>
+
+      {/* Expanded List */}
+      {isOpen && (
+        <div className="bg-slate-50 p-3 space-y-3 rounded-lg mb-2 animate-in slide-in-from-top-1">
+          {items.map((item) => (
+            <div key={item.id} className="flex flex-wrap items-center gap-y-2 gap-x-2 text-sm bg-white p-2 rounded shadow-sm border border-gray-200">
+              
+              {/* Name Input - Grows to fill available space */}
+              <input 
+                type="text" 
+                value={item.name}
+                onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
+                className="flex-grow min-w-[140px] bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none px-1 font-medium text-slate-700"
+                placeholder="Item Name"
+              />
+
+              {/* Right side controls group - kept together to prevent awkward wrapping */}
+              <div className="flex items-center gap-2 ml-auto">
+                
+                {/* Unit Selector ($ or Hrs) */}
+                <div className="relative shrink-0">
+                  <select
+                    value={item.unit || 'currency'}
+                    onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
+                    className={`appearance-none font-bold border-none bg-transparent text-right w-10 focus:ring-0 cursor-pointer ${item.unit === 'hours' ? 'text-blue-600' : 'text-green-600'}`}
+                  >
+                    <option value="currency">$</option>
+                    <option value="hours">Hr</option>
+                  </select>
+                </div>
+
+                {/* Value Input */}
+                <input
+                  type="number"
+                  value={item.value}
+                  onChange={(e) => handleItemChange(item.id, 'value', parseFloat(e.target.value) || 0)}
+                  className="w-20 text-right font-medium text-gray-900 border border-gray-200 rounded px-1 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
+                  step="0.01"
+                />
+
+                {/* Frequency Selector */}
+                <div className="relative shrink-0">
+                  <select
+                    value={item.freq}
+                    onChange={(e) => handleItemChange(item.id, 'freq', e.target.value)}
+                    className="appearance-none bg-gray-100 border border-gray-200 text-gray-600 py-1 pl-2 pr-6 rounded focus:ring-2 focus:ring-blue-500 outline-none text-xs font-medium w-[75px]"
+                  >
+                    {FREQUENCIES.map(f => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+
+                {/* Delete Button */}
+                <button onClick={() => removeItem(item.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1 shrink-0">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+          
+          <button 
+            onClick={addItem}
+            className="w-full py-2 border border-dashed border-gray-300 rounded text-xs font-medium text-gray-500 hover:bg-white hover:text-blue-600 hover:border-blue-300 transition-all flex items-center justify-center gap-1"
+          >
+            <Plus size={12} /> Add Row to {label}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const InputRow = ({ label, data, onChange, className = "", children, readOnly = false, readOnlyText = "" }) => (
   <div className={`flex items-center justify-between py-2 border-b border-gray-100 last:border-0 text-sm ${className}`}>
     <span className="text-gray-600 flex-1 mr-2">{label}</span>
     <div className="flex items-center gap-2">
-      
-      {/* Optional children (like extra buttons) */}
       {children}
-
       {readOnly ? (
         <span className="font-bold text-slate-900 px-2 py-1 bg-gray-50 rounded border border-gray-200 min-w-[80px] text-right">
           {readOnlyText}
         </span>
       ) : (
         <>
-          {/* Unit Selector ($ or Hrs) */}
-          <div className="relative">
-            <select
-              value={data.unit || 'currency'}
-              onChange={(e) => onChange({ ...data, unit: e.target.value })}
-              className={`appearance-none font-bold border-none bg-transparent text-right w-8 focus:ring-0 cursor-pointer ${data.unit === 'hours' ? 'text-blue-600' : 'text-green-600'}`}
-            >
-              <option value="currency">$</option>
-              <option value="hours">Hr</option>
-            </select>
+           <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+            <input
+              type="number"
+              value={data.value}
+              onChange={(e) => onChange({ ...data, value: parseFloat(e.target.value) || 0 })}
+              className="w-24 text-right font-medium text-gray-900 border rounded pl-4 pr-1 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
+              step="0.01"
+            />
           </div>
-
-          {/* Value Input */}
-          <input
-            type="number"
-            value={data.value}
-            onChange={(e) => onChange({ ...data, value: parseFloat(e.target.value) || 0 })}
-            className="w-20 text-right font-medium text-gray-900 border rounded px-1 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
-            step="0.01"
-          />
-
-          {/* Frequency Selector */}
           <div className="relative">
             <select
               value={data.freq}
@@ -90,67 +200,75 @@ const InputRow = ({ label, data, onChange, className = "", children, readOnly = 
 
 export default function HvacCalculator() {
   // --- STATE MANAGEMENT ---
-  
+  const fileInputRef = useRef(null);
+
   // Global Settings
   const [numEmployees, setNumEmployees] = useState(1);
   const [utilizationRate, setUtilizationRate] = useState(65);
   const [workDays, setWorkDays] = useState(245);
-  const [location, setLocation] = useState('WI'); // 'WI' or 'IL'
-  
-  // Pricing Simulator State
+  const [location, setLocation] = useState('WI');
   const [targetRate, setTargetRate] = useState(340);
 
-  // Hourly Breakdown Data (Value + Frequency + Unit)
-  const [hourlyData, setHourlyData] = useState({
+  // 1. HOURLY WAGE & CORE TAXES (Simple Inputs)
+  const [coreHourly, setCoreHourly] = useState({
     wage: { value: 50.00, freq: 'hourly', unit: 'currency' },
-    insurance: { value: 12.00, freq: 'hourly', unit: 'currency' }, 
-    healthReimb: { value: 6.12, freq: 'hourly', unit: 'currency' },
-    lunch: { value: 6.25, freq: 'hourly', unit: 'currency' },
-    fidelity: { value: 2.45, freq: 'hourly', unit: 'currency' },
-    iphone: { value: 0.43, freq: 'hourly', unit: 'currency' },
-    snacks: { value: 2.50, freq: 'hourly', unit: 'currency' },
-    wifePerk: { value: 0.24, freq: 'hourly', unit: 'currency' },
-    shopAmenity: { value: 1.00, freq: 'hourly', unit: 'currency' },
-    toolMaintenance: { value: 1.00, freq: 'hourly', unit: 'currency' },
+    insurance: { value: 2.00, freq: 'hourly', unit: 'currency' }, // Updated to $2
   });
 
-  // Variable Annual Costs
-  const [variableData, setVariableData] = useState({
-    trucks: { value: 3000, freq: 'yearly', unit: 'currency' },
-    tools: { value: 2000, freq: 'yearly', unit: 'currency' },
-    gas: { value: 800, freq: 'yearly', unit: 'currency' },
-    advertising: { value: 4000, freq: 'yearly', unit: 'currency' },
-    vlogEditing: { value: 4900, freq: 'yearly', unit: 'currency' },
-    pto: { value: 8000, freq: 'yearly', unit: 'currency' },
-    paidHolidays: { value: 4800, freq: 'yearly', unit: 'currency' },
-    // New Items
-    uniforms: { value: 0, freq: 'yearly', unit: 'currency' },
-    consumables: { value: 0, freq: 'yearly', unit: 'currency' },
-    warranty: { value: 0, freq: 'yearly', unit: 'currency' },
-    training: { value: 0, freq: 'yearly', unit: 'currency' },
+  // 2. BENEFITS & PERKS (Compound List)
+  const [benefitsList, setBenefitsList] = useState({
+    general: [
+      { id: 1, name: 'Health Reimbursement', value: 1000, freq: 'monthly', unit: 'currency' }, // Updated to $1000/mo
+      { id: 2, name: 'Paid Lunch', value: 1, freq: 'daily', unit: 'hours' }, // Updated to 1hr/day
+      { id: 3, name: 'Investment Plan', value: 400, freq: 'monthly', unit: 'currency' }, // Updated to $400/mo
+      { id: 4, name: 'iPhone', value: 70, freq: 'monthly', unit: 'currency' }, // Updated to $70/mo
+      { id: 5, name: 'Snack Bar', value: 19.99, freq: 'daily', unit: 'currency' }, // Updated to $19.99/day
+      { id: 6, name: 'Wife Perk', value: 49.96, freq: 'monthly', unit: 'currency' }, // Updated to $49.96/mo
+      { id: 7, name: 'Shop Upgrade Fund', value: 1.00, freq: 'hourly', unit: 'currency' },
+    ]
   });
 
-  // Gas Calculator State
+  // 3. VARIABLE OVERHEAD (Compound Lists)
+  const [variableOverhead, setVariableOverhead] = useState({
+    trucks: [{ id: 1, name: 'Lease Payment', value: 3000, freq: 'yearly', unit: 'currency' }],
+    tools: [{ id: 1, name: 'New Setup', value: 2000, freq: 'yearly', unit: 'currency' }],
+    advertising: [{ id: 1, name: 'Ad Spend', value: 4000, freq: 'yearly', unit: 'currency' }],
+    training: [{ id: 1, name: 'Certifications', value: 500, freq: 'yearly', unit: 'currency' }], // Updated to $500
+    uniforms: [{ id: 1, name: 'Shirts/Boots', value: 500, freq: 'yearly', unit: 'currency' }], // Updated to $500
+    consumables: [{ id: 1, name: 'Zip Ties/Tape', value: 10, freq: 'daily', unit: 'currency' }], // Updated to $10/day
+    warranty: [{ id: 1, name: 'Callback Fund', value: 0.5, freq: 'daily', unit: 'hours' }], // Updated to 0.5hr/day
+    other: [
+      { id: 1, name: 'Vlog Editing', value: 4900, freq: 'yearly', unit: 'currency' },
+      { id: 2, name: 'PTO Cost', value: 80, freq: 'yearly', unit: 'hours' }, // Updated to 80hrs/yr
+      { id: 3, name: 'Paid Holidays', value: 48, freq: 'yearly', unit: 'hours' } // Updated to 48hrs/yr
+    ]
+  });
+
+  // Gas Calculator State (Kept separate as it's a special calculator)
   const [gasParams, setGasParams] = useState({
     isOpen: false,
     milesPerDay: 80,
-    mpg: 15,
-    gasPrice: 3.50
+    mpg: 20, // Updated to 20 MPG
+    gasPrice: 4.00, // Updated to $4
+    annualCost: 3920.00 // Initial Calculation based on above (80/20 * 4 * 245)
   });
 
-  // Fixed Annual Costs
-  const [fixedData, setFixedData] = useState({
-    software: { value: 6000, freq: 'yearly', unit: 'currency' },
-    rent: { value: 30000, freq: 'yearly', unit: 'currency' },
-    postage: { value: 1000, freq: 'yearly', unit: 'currency' },
-    accountant: { value: 10000, freq: 'yearly', unit: 'currency' },
-    // New Items
-    glInsurance: { value: 0, freq: 'yearly', unit: 'currency' },
-    shopUtilities: { value: 0, freq: 'yearly', unit: 'currency' },
-    officeSupplies: { value: 0, freq: 'yearly', unit: 'currency' },
-    bankFees: { value: 0, freq: 'yearly', unit: 'currency' },
-    licensing: { value: 0, freq: 'yearly', unit: 'currency' },
-    janitorial: { value: 0, freq: 'yearly', unit: 'currency' },
+  // 4. FIXED OVERHEAD (Compound Lists)
+  const [fixedOverhead, setFixedOverhead] = useState({
+    software: [{ id: 1, name: 'Jobber/QBO', value: 6000, freq: 'yearly', unit: 'currency' }],
+    rent: [{ id: 1, name: 'Shop Rent', value: 30000, freq: 'yearly', unit: 'currency' }],
+    utilities: [{ id: 1, name: 'Shop Utilities', value: 0, freq: 'yearly', unit: 'currency' }],
+    professional: [
+      { id: 1, name: 'Accountant', value: 10000, freq: 'yearly', unit: 'currency' },
+      { id: 2, name: 'Bank Fees', value: 0, freq: 'yearly', unit: 'currency' },
+      { id: 3, name: 'Licensing', value: 0, freq: 'yearly', unit: 'currency' }
+    ],
+    insurance: [{ id: 1, name: 'Gen. Liability', value: 0, freq: 'yearly', unit: 'currency' }],
+    office: [
+      { id: 1, name: 'Postage', value: 1000, freq: 'yearly', unit: 'currency' },
+      { id: 2, name: 'Supplies', value: 0, freq: 'yearly', unit: 'currency' },
+      { id: 3, name: 'Janitorial', value: 0, freq: 'yearly', unit: 'currency' }
+    ]
   });
 
   // UI State
@@ -158,25 +276,102 @@ export default function HvacCalculator() {
     hourly: true,
     variable: false,
     fixed: false,
-    benefitsDetail: true
   });
 
   const toggleSection = (key) => {
     setSectionsOpen(prev => ({...prev, [key]: !prev[key]}));
   };
 
+  // --- EXPORT / IMPORT LOGIC ---
+  const handleExport = () => {
+    const data = {
+      version: '1.0',
+      numEmployees,
+      utilizationRate,
+      workDays,
+      location,
+      targetRate,
+      coreHourly,
+      benefitsList,
+      variableOverhead,
+      gasParams,
+      fixedOverhead
+    };
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = `hvac_config_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        // Basic validation check could go here
+        
+        if (data.numEmployees !== undefined) setNumEmployees(data.numEmployees);
+        if (data.utilizationRate !== undefined) setUtilizationRate(data.utilizationRate);
+        if (data.workDays !== undefined) setWorkDays(data.workDays);
+        if (data.location) setLocation(data.location);
+        if (data.targetRate !== undefined) setTargetRate(data.targetRate);
+        if (data.coreHourly) setCoreHourly(data.coreHourly);
+        if (data.benefitsList) setBenefitsList(data.benefitsList);
+        if (data.variableOverhead) setVariableOverhead(data.variableOverhead);
+        if (data.gasParams) setGasParams(data.gasParams);
+        if (data.fixedOverhead) setFixedOverhead(data.fixedOverhead);
+        
+        // Note: we do not call alert() as per constraints, but we could show a toast if we had a toast component.
+        // For now, the update is visible immediately.
+      } catch (error) {
+        console.error('Error parsing JSON:', error);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input so same file can be selected again
+  };
+
+
   // --- EFFECT: AUTO-CALCULATE GAS ---
   useEffect(() => {
-    if (gasParams.isOpen) {
-      const dailyCost = (gasParams.milesPerDay / gasParams.mpg) * gasParams.gasPrice;
-      const annualCost = dailyCost * workDays;
-      setVariableData(prev => ({
-        ...prev,
-        gas: { value: parseFloat(annualCost.toFixed(2)), freq: 'yearly', unit: 'currency' }
-      }));
-    }
-  }, [gasParams.milesPerDay, gasParams.mpg, gasParams.gasPrice, gasParams.isOpen, workDays]);
+    const dailyCost = (gasParams.milesPerDay / gasParams.mpg) * gasParams.gasPrice;
+    const annualCost = dailyCost * workDays;
+    setGasParams(p => ({...p, annualCost: annualCost }));
+  }, [gasParams.milesPerDay, gasParams.mpg, gasParams.gasPrice, workDays]);
 
+
+  // --- HELPER: Get Annual Cost from Simple Item ---
+  const getSimpleAnnual = (item) => {
+    const freqConfig = FREQUENCIES.find(f => f.value === item.freq);
+    if (!freqConfig) return 0;
+    let baseValue = item.value;
+    if (item.unit === 'hours') {
+      const currentWage = coreHourly.wage.value; 
+      baseValue = item.value * currentWage;
+    }
+    return freqConfig.toAnnual(baseValue, workDays);
+  };
+
+  // --- HELPER: Get Annual Cost from Compound List ---
+  const getCompoundAnnual = (items) => {
+    return items.reduce((sum, item) => {
+      const freqConfig = FREQUENCIES.find(f => f.value === item.freq);
+      if (!freqConfig) return sum;
+      let baseValue = item.value;
+      if (item.unit === 'hours') {
+         baseValue = item.value * coreHourly.wage.value; 
+      }
+      return sum + freqConfig.toAnnual(baseValue, workDays);
+    }, 0);
+  };
 
   // --- CALCULATIONS ---
 
@@ -185,50 +380,32 @@ export default function HvacCalculator() {
   const totalAnnualHours = workDays * hoursPerDay;
   const billableHours = totalAnnualHours * (utilizationRate / 100);
   
-  // Helper to convert any item to Annual Cost
-  const getAnnualCost = (item) => {
-    const freqConfig = FREQUENCIES.find(f => f.value === item.freq);
-    if (!freqConfig) return 0;
-
-    let baseValue = item.value;
-    
-    if (item.unit === 'hours') {
-      const currentWage = hourlyData.wage.unit === 'currency' ? hourlyData.wage.value : 0;
-      baseValue = item.value * currentWage;
-    }
-
-    return freqConfig.toAnnual(baseValue, workDays);
-  };
-
-  // 2. Hourly Costs & Wages
-  const annualWage = getAnnualCost(hourlyData.wage);
-
-  // --- NEW FICA CALCULATION (7.65% Flat) ---
+  // 2. Labor & Benefits
+  const annualWage = getSimpleAnnual(coreHourly.wage);
+  const annualInsurance = getSimpleAnnual(coreHourly.insurance);
+  
+  // FICA & Unemployment
   const annualFica = annualWage * 0.0765;
   const hourlyFicaDisplay = (annualFica / totalAnnualHours).toFixed(2);
-
-  // --- STATE UNEMPLOYMENT INSURANCE ---
   const annualUnemployment = location === 'WI' ? 430 : 507.93;
-  
-  // Benefits
-  const benefitsList = [
-    'healthReimb', 'lunch', 'fidelity', 'iphone', 
-    'snacks', 'wifePerk', 'shopAmenity', 'toolMaintenance'
-  ];
-  
-  const annualInsurance = getAnnualCost(hourlyData.insurance);
-  const annualBenefitsTotal = benefitsList.reduce((sum, key) => sum + getAnnualCost(hourlyData[key]), 0);
+
+  // Compound Benefits
+  const annualBenefitsTotal = getCompoundAnnual(benefitsList.general);
   const hourlyBenefitsTotal = annualBenefitsTotal / totalAnnualHours;
 
-  // Total Labor Cost (Wage + FICA + Unemployment + Insurance + General Benefits)
   const totalAnnualLaborCost = annualWage + annualFica + annualUnemployment + annualInsurance + annualBenefitsTotal;
   const totalHourlyBurden = totalAnnualLaborCost / totalAnnualHours;
 
-  // 3. Variable Costs
-  const totalAnnualVariablePerEmp = Object.values(variableData).reduce((sum, item) => sum + getAnnualCost(item), 0);
+  // 3. Variable Overhead Total
+  // Sum up all lists in variableOverhead object + Gas
+  const totalAnnualVariablePerEmp = 
+    Object.values(variableOverhead).reduce((sum, list) => sum + getCompoundAnnual(list), 0) + gasParams.annualCost;
+
+  // 4. Fixed Overhead Total
+  // Sum up all lists in fixedOverhead object
+  const totalAnnualFixedCompany = 
+    Object.values(fixedOverhead).reduce((sum, list) => sum + getCompoundAnnual(list), 0);
   
-  // 4. Fixed Costs
-  const totalAnnualFixedCompany = Object.values(fixedData).reduce((sum, item) => sum + getAnnualCost(item), 0);
   const fixedCostAllocatedPerEmp = totalAnnualFixedCompany / numEmployees;
 
   // 5. Grand Totals
@@ -236,11 +413,10 @@ export default function HvacCalculator() {
   const hourlyCostToBusiness = totalAnnualCostPerEmp / totalAnnualHours;
   const breakEvenRate = totalAnnualCostPerEmp / billableHours;
 
-  // 6. Margin Calculations
+  // 6. Margin
   const profitPerHour = targetRate - breakEvenRate;
   const profitMargin = targetRate > 0 ? (profitPerHour / targetRate) * 100 : 0;
   
-  // Determine visual color for margin
   let marginColor = "text-red-600";
   let barColor = "bg-red-500";
   if (profitMargin >= 20) {
@@ -250,11 +426,6 @@ export default function HvacCalculator() {
     marginColor = "text-amber-500";
     barColor = "bg-amber-500";
   }
-
-  // --- HANDLERS ---
-  const updateHourly = (key, val) => setHourlyData(prev => ({...prev, [key]: val}));
-  const updateVariable = (key, val) => setVariableData(prev => ({...prev, [key]: val}));
-  const updateFixed = (key, val) => setFixedData(prev => ({...prev, [key]: val}));
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-800">
@@ -267,7 +438,34 @@ export default function HvacCalculator() {
               <Calculator className="text-blue-600" size={32} />
               HVAC Tech Profitability
             </h1>
-            <p className="text-slate-500 mt-1">Analyze costs, overhead, and calculate your break-even rate.</p>
+            <div className="flex items-center gap-3 mt-1">
+                <p className="text-slate-500">Analyze costs, overhead, and profit margins.</p>
+                
+                {/* EXPORT / IMPORT BUTTONS */}
+                <div className="flex gap-2 ml-2">
+                    <button 
+                        onClick={handleExport} 
+                        className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-200 rounded-md text-xs font-medium text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
+                        title="Download current data"
+                    >
+                        <Download size={14} /> Export Data
+                    </button>
+                    <button 
+                        onClick={() => fileInputRef.current.click()} 
+                        className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-200 rounded-md text-xs font-medium text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
+                        title="Upload saved data"
+                    >
+                        <Upload size={14} /> Import Data
+                    </button>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleImport} 
+                        accept=".json" 
+                        className="hidden" 
+                    />
+                </div>
+            </div>
           </div>
           
           {/* TOP LEVEL CONTROLS */}
@@ -318,82 +516,43 @@ export default function HvacCalculator() {
           {/* LEFT COLUMN: INPUTS */}
           <div className="lg:col-span-1 space-y-4">
             
-            {/* HOURLY INPUTS */}
+            {/* 1. HOURLY & BENEFITS */}
             <Card className="overflow-hidden">
               <SectionHeader 
-                title="Wages & Perks" 
+                title="Wages & Benefits" 
                 icon={DollarSign} 
                 isOpen={sectionsOpen.hourly} 
                 onClick={() => toggleSection('hourly')}
               />
               {sectionsOpen.hourly && (
                 <div className="p-4 bg-white animate-in slide-in-from-top-2 duration-200">
-                  <InputRow label="Hourly Rate" data={hourlyData.wage} onChange={(v) => updateHourly('wage', v)} />
+                  {/* Simple Inputs */}
+                  <InputRow label="Hourly Rate" data={coreHourly.wage} onChange={(v) => setCoreHourly(p => ({...p, wage: v}))} />
+                  <InputRow label="Insurance" data={coreHourly.insurance} onChange={(v) => setCoreHourly(p => ({...p, insurance: v}))} />
                   
-                  {/* READ ONLY FICA */}
-                  <InputRow 
-                    label="FICA Tax (7.65%)" 
-                    readOnly={true} 
-                    readOnlyText={`$${hourlyFicaDisplay}/hr`} 
-                  />
-
-                  {/* STATE SELECTOR */}
+                  {/* Read Only Taxes */}
+                  <InputRow label="FICA Tax (7.65%)" readOnly={true} readOnlyText={`$${hourlyFicaDisplay}/hr`} />
+                  
                   <div className="flex items-center justify-between py-2 border-b border-gray-100 text-sm">
-                    <span className="text-gray-600 flex-1 mr-2 flex items-center gap-1">
-                      <MapPin size={14} className="text-gray-400"/> Employer State
-                    </span>
+                    <span className="text-gray-600 flex-1 mr-2 flex items-center gap-1"><MapPin size={14} className="text-gray-400"/> State</span>
                     <div className="relative">
-                      <select
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        className="appearance-none bg-blue-50 border border-blue-200 text-blue-700 py-1 pl-3 pr-8 rounded font-bold focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                      >
-                        <option value="WI">Wisconsin</option>
-                        <option value="IL">Illinois</option>
+                      <select value={location} onChange={(e) => setLocation(e.target.value)} className="bg-blue-50 border border-blue-200 text-blue-700 py-1 px-2 rounded font-bold text-sm outline-none">
+                        <option value="WI">WI ($430/yr)</option>
+                        <option value="IL">IL ($508/yr)</option>
                       </select>
-                      <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" />
                     </div>
                   </div>
 
-                  {/* UNEMPLOYMENT INSURANCE */}
-                  <InputRow 
-                    label="Unemployment Ins." 
-                    readOnly={true} 
-                    readOnlyText={`$${annualUnemployment}/yr`} 
-                  />
-
-                  <InputRow label="Insurance" data={hourlyData.insurance} onChange={(v) => updateHourly('insurance', v)} />
-                  
-                  {/* GENERAL BENEFITS DROPDOWN SECTION */}
-                  <div className="py-2 border-b border-gray-100">
-                    <button 
-                      onClick={() => toggleSection('benefitsDetail')}
-                      className="w-full flex items-center justify-between text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors py-1"
-                    >
-                      <div className="flex items-center gap-2">
-                        {sectionsOpen.benefitsDetail ? <Minus size={12} /> : <Plus size={12} />}
-                        <span>General Benefits (Total)</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400 text-xs">$</span>
-                        <span className="text-right font-bold text-slate-900 px-1">
-                          {hourlyBenefitsTotal.toFixed(2)} <span className="text-xs font-normal text-gray-400">/hr eq.</span>
-                        </span>
-                      </div>
-                    </button>
-
-                    {sectionsOpen.benefitsDetail && (
-                      <div className="mt-2 pl-2 border-l-2 border-slate-100 space-y-0 animate-in slide-in-from-top-1 duration-200">
-                        <InputRow className="border-none py-1" label="Health Reimbursement" data={hourlyData.healthReimb} onChange={(v) => updateHourly('healthReimb', v)} />
-                        <InputRow className="border-none py-1" label="Paid Lunch" data={hourlyData.lunch} onChange={(v) => updateHourly('lunch', v)} />
-                        <InputRow className="border-none py-1" label="Investment Plan" data={hourlyData.fidelity} onChange={(v) => updateHourly('fidelity', v)} />
-                        <InputRow className="border-none py-1" label="iPhone" data={hourlyData.iphone} onChange={(v) => updateHourly('iphone', v)} />
-                        <InputRow className="border-none py-1" label="Snack Bar" data={hourlyData.snacks} onChange={(v) => updateHourly('snacks', v)} />
-                        <InputRow className="border-none py-1" label="Wife Perk" data={hourlyData.wifePerk} onChange={(v) => updateHourly('wifePerk', v)} />
-                        <InputRow className="border-none py-1" label="Shop Upgrade Fund" data={hourlyData.shopAmenity} onChange={(v) => updateHourly('shopAmenity', v)} />
-                        <InputRow className="border-none py-1" label="Tool Maint." data={hourlyData.toolMaintenance} onChange={(v) => updateHourly('toolMaintenance', v)} />
-                      </div>
-                    )}
+                  {/* Compound Benefits List */}
+                  <div className="mt-4 pt-2 border-t border-gray-100">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Custom Benefits & Perks</h4>
+                    <CompoundInputGroup 
+                      label="Benefits List" 
+                      items={benefitsList.general} 
+                      onUpdate={(items) => setBenefitsList({ general: items })} 
+                      workDays={workDays}
+                      wage={coreHourly.wage.value}
+                    />
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between font-bold text-slate-700 text-sm">
@@ -404,7 +563,7 @@ export default function HvacCalculator() {
               )}
             </Card>
 
-            {/* VARIABLE OVERHEAD */}
+            {/* 2. VARIABLE OVERHEAD */}
             <Card className="overflow-hidden">
               <SectionHeader 
                 title="Variable Overhead" 
@@ -414,73 +573,46 @@ export default function HvacCalculator() {
               />
               {sectionsOpen.variable && (
                 <div className="p-4 bg-white animate-in slide-in-from-top-2 duration-200">
-                  <div className="text-xs text-gray-500 mb-3 bg-blue-50 p-2 rounded">Costs tied to each employee.</div>
-                  <InputRow label="Truck Lease" data={variableData.trucks} onChange={(v) => updateVariable('trucks', v)} />
-                  <InputRow label="Tools (Setup)" data={variableData.tools} onChange={(v) => updateVariable('tools', v)} />
+                  <div className="text-xs text-gray-500 mb-3 bg-blue-50 p-2 rounded">Costs tied to each employee. Add multiple items per category.</div>
                   
-                  {/* GAS SECTION WITH CALCULATOR */}
-                  <div className="bg-slate-50 rounded-lg my-1">
-                    <InputRow 
-                      label="Gas" 
-                      data={variableData.gas} 
-                      onChange={(v) => updateVariable('gas', v)} 
-                      className="bg-transparent"
-                    >
-                      <button 
-                        onClick={() => setGasParams(p => ({...p, isOpen: !p.isOpen}))}
-                        className={`p-1 rounded transition-colors ${gasParams.isOpen ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-blue-600'}`}
-                        title="Gas Cost Calculator"
-                      >
-                        <Fuel size={16} />
-                      </button>
-                    </InputRow>
-
-                    {gasParams.isOpen && (
-                      <div className="px-4 pb-3 pt-1 border-b border-gray-100 text-sm animate-in slide-in-from-top-1">
-                        <div className="grid grid-cols-3 gap-2 mb-2">
-                          <div>
-                            <label className="text-[10px] text-gray-500 font-bold uppercase">Miles/Day</label>
-                            <input 
-                              type="number" 
-                              value={gasParams.milesPerDay}
-                              onChange={(e) => setGasParams(p => ({...p, milesPerDay: parseFloat(e.target.value) || 0}))}
-                              className="w-full border rounded p-1 text-right font-medium text-slate-700 focus:ring-1 focus:ring-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-gray-500 font-bold uppercase">MPG</label>
-                            <input 
-                              type="number" 
-                              value={gasParams.mpg}
-                              onChange={(e) => setGasParams(p => ({...p, mpg: parseFloat(e.target.value) || 1}))}
-                              className="w-full border rounded p-1 text-right font-medium text-slate-700 focus:ring-1 focus:ring-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-gray-500 font-bold uppercase">$/Gal</label>
-                            <input 
-                              type="number" 
-                              value={gasParams.gasPrice}
-                              onChange={(e) => setGasParams(p => ({...p, gasPrice: parseFloat(e.target.value) || 0}))}
-                              className="w-full border rounded p-1 text-right font-medium text-slate-700 focus:ring-1 focus:ring-blue-500"
-                            />
-                          </div>
+                  <CompoundInputGroup label="Trucks" items={variableOverhead.trucks} onUpdate={(i) => setVariableOverhead(p => ({...p, trucks: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                  <CompoundInputGroup label="Tools" items={variableOverhead.tools} onUpdate={(i) => setVariableOverhead(p => ({...p, tools: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                  
+                  {/* Special Gas Calculator */}
+                   <div className="border-b border-gray-100 py-3 px-2">
+                     <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2 font-medium text-sm text-slate-700">
+                          <Fuel size={14} className="text-blue-500"/>
+                          <span>Gas Calculator</span>
                         </div>
-                        <div className="text-xs text-blue-600 text-center bg-blue-50 rounded py-1">
-                          Calculated: <strong>${((gasParams.milesPerDay / gasParams.mpg) * gasParams.gasPrice).toFixed(2)} / day</strong>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-900">${gasParams.annualCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                          <span className="text-xs text-gray-400">/yr</span>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                     </div>
+                     <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="bg-slate-50 p-1 rounded">
+                          <span className="block text-gray-400 text-[9px] uppercase font-bold">Miles/Day</span>
+                          <input type="number" value={gasParams.milesPerDay} onChange={(e) => setGasParams(p=>({...p, milesPerDay: parseFloat(e.target.value)||0}))} className="w-full bg-transparent font-bold text-right outline-none" />
+                        </div>
+                        <div className="bg-slate-50 p-1 rounded">
+                          <span className="block text-gray-400 text-[9px] uppercase font-bold">MPG</span>
+                          <input type="number" value={gasParams.mpg} onChange={(e) => setGasParams(p=>({...p, mpg: parseFloat(e.target.value)||0}))} className="w-full bg-transparent font-bold text-right outline-none" />
+                        </div>
+                        <div className="bg-slate-50 p-1 rounded">
+                          <span className="block text-gray-400 text-[9px] uppercase font-bold">$/Gal</span>
+                          <input type="number" value={gasParams.gasPrice} onChange={(e) => setGasParams(p=>({...p, gasPrice: parseFloat(e.target.value)||0}))} className="w-full bg-transparent font-bold text-right outline-none" />
+                        </div>
+                     </div>
+                   </div>
 
-                  <InputRow label="Uniforms" data={variableData.uniforms} onChange={(v) => updateVariable('uniforms', v)} />
-                  <InputRow label="Consumables" data={variableData.consumables} onChange={(v) => updateVariable('consumables', v)} />
-                  <InputRow label="Warranty/Callback" data={variableData.warranty} onChange={(v) => updateVariable('warranty', v)} />
-                  <InputRow label="Training/Certs" data={variableData.training} onChange={(v) => updateVariable('training', v)} />
-                  <InputRow label="Advertising" data={variableData.advertising} onChange={(v) => updateVariable('advertising', v)} />
-                  <InputRow label="Vlog Editing" data={variableData.vlogEditing} onChange={(v) => updateVariable('vlogEditing', v)} />
-                  <InputRow label="PTO Cost" data={variableData.pto} onChange={(v) => updateVariable('pto', v)} />
-                  <InputRow label="Paid Holidays" data={variableData.paidHolidays} onChange={(v) => updateVariable('paidHolidays', v)} />
+                  <CompoundInputGroup label="Uniforms" items={variableOverhead.uniforms} onUpdate={(i) => setVariableOverhead(p => ({...p, uniforms: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                  <CompoundInputGroup label="Consumables" items={variableOverhead.consumables} onUpdate={(i) => setVariableOverhead(p => ({...p, consumables: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                  <CompoundInputGroup label="Warranty" items={variableOverhead.warranty} onUpdate={(i) => setVariableOverhead(p => ({...p, warranty: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                  <CompoundInputGroup label="Training" items={variableOverhead.training} onUpdate={(i) => setVariableOverhead(p => ({...p, training: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                  <CompoundInputGroup label="Advertising" items={variableOverhead.advertising} onUpdate={(i) => setVariableOverhead(p => ({...p, advertising: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                  <CompoundInputGroup label="Other (PTO/Vlog)" items={variableOverhead.other} onUpdate={(i) => setVariableOverhead(p => ({...p, other: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+
                   <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between font-bold text-slate-700 text-sm">
                     <span>Annual Variable Total</span>
                     <span>${totalAnnualVariablePerEmp.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
@@ -489,7 +621,7 @@ export default function HvacCalculator() {
               )}
             </Card>
 
-            {/* FIXED OVERHEAD */}
+            {/* 3. FIXED OVERHEAD */}
             <Card className="overflow-hidden">
               <SectionHeader 
                 title="Fixed Overhead" 
@@ -499,18 +631,15 @@ export default function HvacCalculator() {
               />
               {sectionsOpen.fixed && (
                 <div className="p-4 bg-white animate-in slide-in-from-top-2 duration-200">
-                  <div className="text-xs text-gray-500 mb-3 bg-orange-50 p-2 rounded">Total company costs (divided by # of techs).</div>
-                  <InputRow label="Rent" data={fixedData.rent} onChange={(v) => updateFixed('rent', v)} />
-                  <InputRow label="Shop Utilities" data={fixedData.shopUtilities} onChange={(v) => updateFixed('shopUtilities', v)} />
-                  <InputRow label="Software" data={fixedData.software} onChange={(v) => updateFixed('software', v)} />
-                  <InputRow label="Accountant" data={fixedData.accountant} onChange={(v) => updateFixed('accountant', v)} />
-                  <InputRow label="Gen. Liability Ins." data={fixedData.glInsurance} onChange={(v) => updateFixed('glInsurance', v)} />
-                  <InputRow label="Licensing/Permits" data={fixedData.licensing} onChange={(v) => updateFixed('licensing', v)} />
-                  <InputRow label="Bank Fees/Interest" data={fixedData.bankFees} onChange={(v) => updateFixed('bankFees', v)} />
-                  <InputRow label="Office Supplies" data={fixedData.officeSupplies} onChange={(v) => updateFixed('officeSupplies', v)} />
-                  <InputRow label="Janitorial/Cleaning" data={fixedData.janitorial} onChange={(v) => updateFixed('janitorial', v)} />
-                  <InputRow label="Postage" data={fixedData.postage} onChange={(v) => updateFixed('postage', v)} />
-                  
+                   <div className="text-xs text-gray-500 mb-3 bg-orange-50 p-2 rounded">Total company costs (divided by # of techs).</div>
+                   
+                   <CompoundInputGroup label="Software" items={fixedOverhead.software} onUpdate={(i) => setFixedOverhead(p => ({...p, software: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                   <CompoundInputGroup label="Rent" items={fixedOverhead.rent} onUpdate={(i) => setFixedOverhead(p => ({...p, rent: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                   <CompoundInputGroup label="Utilities" items={fixedOverhead.utilities} onUpdate={(i) => setFixedOverhead(p => ({...p, utilities: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                   <CompoundInputGroup label="Professional Fees" items={fixedOverhead.professional} onUpdate={(i) => setFixedOverhead(p => ({...p, professional: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                   <CompoundInputGroup label="Insurance (GL)" items={fixedOverhead.insurance} onUpdate={(i) => setFixedOverhead(p => ({...p, insurance: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+                   <CompoundInputGroup label="Office & Janitorial" items={fixedOverhead.office} onUpdate={(i) => setFixedOverhead(p => ({...p, office: i}))} workDays={workDays} wage={coreHourly.wage.value} />
+
                   <div className="mt-4 pt-3 border-t border-gray-200 space-y-1">
                     <div className="flex justify-between text-sm text-gray-500">
                       <span>Total Fixed Company</span>
